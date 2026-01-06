@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Updated Imports: Including get_current_user for role management
 from .database import db 
-from .auth import admin_required, get_current_user 
+from .auth import admin_required, get_current_user, router as auth_router
 from .crud import crud
 from .schemas import WorkerCreate
 from .salary import router as salary_router
@@ -27,6 +27,10 @@ app.add_middleware(
 # --------------------------------------------------
 # INCLUDE ROUTERS
 # --------------------------------------------------
+
+# Connects the new Login endpoint
+app.include_router(auth_router, prefix="/api/v1")
+
 # Connects production entry and salary logic
 app.include_router(salary_router, prefix="/api/v1", tags=["Salary & Production"])
 

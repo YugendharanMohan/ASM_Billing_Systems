@@ -1,92 +1,99 @@
 import os
-from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials # NEW: Required for Swagger UI lock button
+import requests # Make sure to pip install requests if not already included in requirements
+from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth
 from pathlib import Path
 
 # --------------------------------------------------
-# Configuration & Constants
+# CONFIGURATION
 # --------------------------------------------------
-# CRITICAL: Replace this with your actual Firebase email address
-# This ensures you have access even before you set up custom admin claims.
-SUPER_ADMIN_EMAIL = "yugendharanmohan@gmail.com" 
+SUPER_ADMIN_EMAIL = [ "yugendharanmohan@gmail.com", "mohanas510@gmail.com", "jeevankumaram25@gmail.com"]
 
-# Use absolute path logic to find the JSON file reliably
-# This looks for the JSON in the 'backend/' folder
+# ⚠️ MOVE TO ENV VARIABLE IN PRODUCTION
+# This is the key from your get_token.py
+FIREBASE_WEB_API_KEY = "AIzaSyCF0EQpmBGAT_Wo4elFmUCgVYLhuzquZqM"
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 SERVICE_ACCOUNT_PATH = BASE_DIR / "firebase-service-account.json"
 
 # --------------------------------------------------
-# Firebase Admin Initialization (ONCE)
+# FIREBASE INIT
 # --------------------------------------------------
 if not firebase_admin._apps:
     if not SERVICE_ACCOUNT_PATH.exists():
-        raise FileNotFoundError(
-            f"Firebase service account file not found at {SERVICE_ACCOUNT_PATH}. "
-            "Please download it from Project Settings > Service Accounts in Firebase."
-        )
+        # Fallback for Render environment variable check usually handled in firebase_admin.py
+        # If this fails, ensure firebase_admin.py is imported in main.py before auth is used.
+        pass 
+    else:
+        cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
+        firebase_admin.initialize_app(cred)
+
+# --------------------------------------------------
+# AUTH ROUTER & LOGIN LOGIC
+# --------------------------------------------------
+router = APIRouter()
+
+# 1. DEFINE THE SCHEME
+# This tells Swagger: "To get a token, send a POST request to this URL"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+# 2. LOGIN ENDPOINT (Replaces get_token.py)
+@router.post("/auth/login", tags=["Authentication"])
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Exchanges Email/Password for a Firebase ID Token.
+    Used by Swagger UI 'Authorize' button automatically.
+    """
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
+    payload = {
+        "email": form_data.username, # OAuth2 form sends 'username', we use it as email
+        "password": form_data.password,
+        "returnSecureToken": True
+    }
     
-    cred = credentials.Certificate(str(SERVICE_ACCOUNT_PATH))
-    firebase_admin.initialize_app(cred)
+    response = requests.post(url, json=payload)
+    data = response.json()
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Login Failed: {data.get('error', {}).get('message', 'Unknown error')}"
+        )
+
+    # Return the token in the format FastAPI expects
+    return {"access_token": data["idToken"], "token_type": "bearer"}
 
 # --------------------------------------------------
-# SECURITY SCHEME
+# DEPENDENCIES
 # --------------------------------------------------
-# This tells FastAPI that we are using Bearer tokens.
-# It automatically adds the "Lock" icon to Swagger UI and handles the "Bearer " prefix.
-security = HTTPBearer()
 
-# --------------------------------------------------
-# 1. Base Token Verification (Internal Use)
-# --------------------------------------------------
-def verify_firebase_token(creds: HTTPAuthorizationCredentials = Depends(security)):
+def verify_firebase_token(token: str = Depends(oauth2_scheme)):
     """
-    Extracts and verifies Firebase ID token.
-    FastAPI (HTTPBearer) automatically extracts the token from the header.
+    Decodes the token.
+    oauth2_scheme automatically extracts the token from the Authorization header.
     """
-    token = creds.credentials # This gets the clean token string
-
     try:
-        # Verifies the token and returns a dict containing uid, email, etc.
         decoded_token = firebase_auth.verify_id_token(token)
-        return decoded_token  
+        return decoded_token
     except Exception:
         raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired Firebase token. Please login again."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-
-# --------------------------------------------------
-# 2. Regular User Dependency (Allows ANY logged-in user)
-# --------------------------------------------------
 def get_current_user(user=Depends(verify_firebase_token)):
-    """
-    Validates that the user is logged in. 
-    Does NOT check for admin privileges.
-    Use this for endpoints accessible by 'User' role.
-    """
     return user
 
-
-# --------------------------------------------------
-# 3. Admin-only Dependency
-# --------------------------------------------------
 def admin_required(user=Depends(verify_firebase_token)):
-    """
-    Ensures the logged-in user is an admin.
-    Checks for Firebase custom claims OR the fallback super admin email.
-    Use this for endpoints accessible ONLY by 'Admin' role.
-    """
     is_admin_claim = user.get("admin", False)
     user_email = user.get("email")
 
-    # Grant access if they have the admin claim OR match the super admin email
-    if not is_admin_claim and user_email != SUPER_ADMIN_EMAIL:
+    if not is_admin_claim and user_email not in SUPER_ADMIN_EMAIL:
         raise HTTPException(
-            status_code=403,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied for {user_email}. Admin rights required."
         )
-
     return user
