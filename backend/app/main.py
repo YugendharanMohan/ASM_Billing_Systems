@@ -1,3 +1,10 @@
+import os
+# Force gRPC to use the system's native DNS resolver
+os.environ["GRPC_DNS_RESOLVER"] = "native"
+# --------------------------------------------------
+# IMPORTS
+# --------------------------------------------------    
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
