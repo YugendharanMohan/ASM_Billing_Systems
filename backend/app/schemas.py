@@ -54,6 +54,7 @@ class SalarySummary(BaseModel):
 # NEW: For Updating Workers
 class WorkerUpdate(BaseModel):
     name: Optional[str] = None
+    phone: Optional[str] = None
     is_active: Optional[bool] = None
 
 # NEW: For Analytics Response
