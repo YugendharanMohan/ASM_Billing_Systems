@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime, timedelta
 from .database import db # Import the Firestore client from your new database.py
 
 class CRUD:
@@ -130,6 +130,67 @@ class CRUD:
                 "total_meters": float(total_meters),
                 "total_salary": float(total_salary)
             }
+        }
+    # -------------------------
+    # NEW: WORKER MANAGEMENT
+    # -------------------------
+    def update_worker(self, worker_id: str, data: dict):
+        doc_ref = db.collection("workers").document(worker_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return None
+        
+        # Filter out None values so we don't overwrite with null
+        update_data = {k: v for k, v in data.items() if v is not None}
+        if update_data:
+            doc_ref.update(update_data)
+        
+        return {**doc.to_dict(), **update_data, "id": worker_id}
+
+    def delete_worker(self, worker_id: str):
+        # In Firestore, we usually "soft delete" by setting is_active=False
+        # But if you want hard delete:
+        db.collection("workers").document(worker_id).delete()
+        return True
+
+    # -------------------------
+    # NEW: PRODUCTION REPORTS
+    # -------------------------
+    def get_production_history(self, start_date: str, end_date: str, worker_id: str = None):
+        query = db.collection("production").where("date", ">=", start_date).where("date", "<=", end_date)
+        
+        if worker_id:
+            query = query.where("worker_id", "==", worker_id)
+            
+        docs = query.stream()
+        return [{"id": doc.id, **doc.to_dict()} for doc in docs]
+
+    def get_analytics(self, start_date: str, end_date: str):
+        # Fetch all data for the range
+        docs = db.collection("production").where("date", ">=", start_date).where("date", "<=", end_date).stream()
+        
+        records = [{"id": doc.id, **doc.to_dict()} for doc in docs]
+        
+        # Calculate aggregates in Python (Firestore doesn't do complex sums natively)
+        total_meters = sum(r.get('meters', 0) for r in records)
+        total_salary = sum(r.get('meters', 0) * r.get('rate', 0) for r in records)
+        
+        # Find top worker
+        worker_totals = {}
+        for r in records:
+            w_id = r.get('worker_id')
+            worker_totals[w_id] = worker_totals.get(w_id, 0) + r.get('meters', 0)
+        
+        top_worker_id = max(worker_totals, key=worker_totals.get) if worker_totals else None
+        
+        # Get active workers count (rough estimate)
+        active_workers = len(worker_totals.keys())
+
+        return {
+            "total_production": total_meters,
+            "total_salary": total_salary,
+            "active_workers": active_workers,
+            "top_worker_id": top_worker_id
         }
 
 crud = CRUD()

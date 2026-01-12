@@ -10,9 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Updated Imports: Including get_current_user for role management
 from .database import db 
-from .auth import admin_required, get_current_user, router as auth_router
+from .auth import (admin_required, get_current_user, router as auth_router, SUPER_ADMIN_EMAIL)
 from .crud import crud
-from .schemas import WorkerCreate
+from .schemas import WorkerCreate, WorkerUpdate 
 from .salary import router as salary_router
 
 # --------------------------------------------------
@@ -62,7 +62,7 @@ def get_my_role(user=Depends(get_current_user)):
     
     # Simple logic to determine what we call them
     # Note: 'yugendharanmohan@gmail.com' is hardcoded as super admin in auth.py
-    role = "Admin" if (is_admin_claim or email == "yugendharanmohan@gmail.com") else "User"
+    role = "Admin" if (is_admin_claim or email in SUPER_ADMIN_EMAIL) else "User"
     
     return {
         "status": "Authenticated",
@@ -115,3 +115,32 @@ def add_loom(
 ):
     """Adds a loom document to a specific shed's sub-collection."""
     return crud.create_loom(shed_id, loom_num)
+
+# --------------------------------------------------
+# NEW: WORKER EDIT / DELETE
+# --------------------------------------------------
+@app.put("/api/v1/workers/{worker_id}")
+def update_worker_endpoint(worker_id: str, worker: WorkerUpdate, user=Depends(get_current_user)):
+    # Optional: Add admin_required dependency if needed
+    updated = crud.update_worker(worker_id, worker.dict())
+    if not updated:
+        raise HTTPException(status_code=404, detail="Worker not found")
+    return updated
+
+@app.delete("/api/v1/workers/{worker_id}")
+def delete_worker_endpoint(worker_id: str, user=Depends(admin_required)): # STRICT: Only Admin
+    success = crud.delete_worker(worker_id)
+    if not success:
+         raise HTTPException(status_code=404, detail="Worker not found")
+    return {"status": "deleted"}
+
+# --------------------------------------------------
+# NEW: PRODUCTION REPORTS
+# --------------------------------------------------
+@app.get("/api/v1/production/history")
+def get_history(start_date: str, end_date: str, worker_id: str = None, user=Depends(get_current_user)):
+    return crud.get_production_history(start_date, end_date, worker_id)
+
+@app.get("/api/v1/production/analytics")
+def get_analytics_endpoint(start_date: str, end_date: str, user=Depends(get_current_user)):
+    return crud.get_analytics(start_date, end_date)

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 # --------------------------------------------------
 # WORKER
@@ -50,3 +50,15 @@ class ProductionCreate(BaseModel):
 class SalarySummary(BaseModel):
     total_meters: float
     total_salary: float
+
+# NEW: For Updating Workers
+class WorkerUpdate(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+# NEW: For Analytics Response
+class AnalyticsSummary(BaseModel):
+    total_production: float
+    total_salary: float
+    active_workers: int
+    top_worker: Optional[str] = None
