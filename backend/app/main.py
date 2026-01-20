@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import db 
 from .auth import (admin_required, get_current_user, router as auth_router, SUPER_ADMIN_EMAIL)
 from .crud import crud
-from .schemas import WorkerCreate, WorkerUpdate 
+from .schemas import WorkerCreate, WorkerUpdate, ProductionUpdate 
 from .salary import router as salary_router
 
 # --------------------------------------------------
@@ -144,3 +144,31 @@ def get_history(start_date: str, end_date: str, worker_id: str = None, user=Depe
 @app.get("/api/v1/production/analytics")
 def get_analytics_endpoint(start_date: str, end_date: str, user=Depends(get_current_user)):
     return crud.get_analytics(start_date, end_date)
+
+# --------------------------------------------------
+# NEW: PRODUCTION ENTRY MANAGEMENT (EDIT/DELETE)
+# --------------------------------------------------
+@app.delete("/api/v1/production/{entry_id}")
+def delete_production_entry(entry_id: str, user=Depends(get_current_user)):
+    """
+    Deletes a production entry.
+    Allowed for any logged-in user to fix mistakes.
+    """
+    success = crud.delete_production(entry_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"status": "success", "message": "Entry deleted"}
+
+@app.put("/api/v1/production/{entry_id}")
+def update_production_entry(entry_id: str, updates: ProductionUpdate, user=Depends(get_current_user)):
+    """
+    Updates a production entry (Meters/Shift).
+    Recalculates earnings automatically.
+    """
+    # Convert Pydantic model to dict, excluding None values
+    update_data = updates.dict(exclude_unset=True)
+    
+    updated_record = crud.update_production(entry_id, update_data)
+    if not updated_record:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return updated_record

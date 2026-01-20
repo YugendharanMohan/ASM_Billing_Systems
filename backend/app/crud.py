@@ -131,8 +131,9 @@ class CRUD:
                 "total_salary": float(total_salary)
             }
         }
+
     # -------------------------
-    # NEW: WORKER MANAGEMENT
+    # WORKER MANAGEMENT UPDATES
     # -------------------------
     def update_worker(self, worker_id: str, data: dict):
         doc_ref = db.collection("workers").document(worker_id)
@@ -148,13 +149,12 @@ class CRUD:
         return {**doc.to_dict(), **update_data, "id": worker_id}
 
     def delete_worker(self, worker_id: str):
-        # In Firestore, we usually "soft delete" by setting is_active=False
-        # But if you want hard delete:
+        # Hard delete worker document
         db.collection("workers").document(worker_id).delete()
         return True
 
     # -------------------------
-    # NEW: PRODUCTION REPORTS
+    # PRODUCTION REPORTS
     # -------------------------
     def get_production_history(self, start_date: str, end_date: str, worker_id: str = None):
         query = db.collection("production").where("date", ">=", start_date).where("date", "<=", end_date)
@@ -171,7 +171,7 @@ class CRUD:
         
         records = [{"id": doc.id, **doc.to_dict()} for doc in docs]
         
-        # Calculate aggregates in Python (Firestore doesn't do complex sums natively)
+        # Calculate aggregates in Python
         total_meters = sum(r.get('meters', 0) for r in records)
         total_salary = sum(r.get('meters', 0) * r.get('rate', 0) for r in records)
         
@@ -183,7 +183,7 @@ class CRUD:
         
         top_worker_id = max(worker_totals, key=worker_totals.get) if worker_totals else None
         
-        # Get active workers count (rough estimate)
+        # Get active workers count
         active_workers = len(worker_totals.keys())
 
         return {
@@ -192,5 +192,58 @@ class CRUD:
             "active_workers": active_workers,
             "top_worker_id": top_worker_id
         }
+
+    # -------------------------
+    # ✅ NEW: PRODUCTION ENTRY MANAGEMENT (EDIT/DELETE)
+    # -------------------------
+    def delete_production(self, entry_id: str):
+        """Deletes a production entry by ID."""
+        doc_ref = db.collection("production").document(entry_id)
+        if not doc_ref.get().exists:
+            return False
+        doc_ref.delete()
+        return True
+
+    def update_production(self, entry_id: str, updates: dict):
+        """
+        Updates meters/shift and recalculates total_amount.
+        'updates' is a dict containing 'meters' or 'shift'.
+        """
+        doc_ref = db.collection("production").document(entry_id)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            return None
+
+        current_data = doc.to_dict()
+        update_data = {}
+
+        # 1. Update Shift if provided
+        if "shift" in updates and updates["shift"] is not None:
+            update_data["shift"] = updates["shift"]
+
+        # 2. Update Meters & Recalculate Salary if provided
+        if "meters" in updates and updates["meters"] is not None:
+            new_meters = updates["meters"]
+            update_data["meters"] = new_meters
+            
+            # We need the rate to recalculate total_amount. 
+            # Use existing rate from DB, fallback to 0 if missing.
+            rate = current_data.get("rate", 0)
+            
+            # Recalculate
+            new_total = new_meters * rate
+            update_data["total_amount"] = new_total
+
+            # Some frontend views might look for 'earnings', so we keep it consistent
+            update_data["earnings"] = new_total
+
+        if update_data:
+            doc_ref.update(update_data)
+            
+            # Return the updated record
+            return {**current_data, **update_data, "id": entry_id}
+        
+        return {**current_data, "id": entry_id}
 
 crud = CRUD()

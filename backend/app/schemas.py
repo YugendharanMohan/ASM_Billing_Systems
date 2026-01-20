@@ -63,3 +63,8 @@ class AnalyticsSummary(BaseModel):
     total_salary: float
     active_workers: int
     top_worker: Optional[str] = None
+
+# NEW: Edit Meter Entry
+class ProductionUpdate(BaseModel):
+    meters: Optional[float] = None
+    shift: Optional[str] = None
