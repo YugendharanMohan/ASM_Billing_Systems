@@ -7,3 +7,8 @@ firebase-service-account.json
 __pycache__/
 *.pyc
 .DS_Store
+
+# Virtual Environment
+venv/
+.venv/
+env/
