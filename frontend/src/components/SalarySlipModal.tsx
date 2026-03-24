@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 
 interface SalaryRecord {
   date: string;
+  shift: string;
   loom: string;
   meters: number;
   loom_id: string;
@@ -75,7 +76,7 @@ export const SalarySlipModal = ({
 
     try {
       const canvas = await html2canvas(element, {
-        scale: 2, 
+        scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff"
       });
@@ -86,7 +87,7 @@ export const SalarySlipModal = ({
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
-      
+
       let pdfImgWidth = pageWidth;
       let pdfImgHeight = (imgProps.height * pageWidth) / imgProps.width;
 
@@ -96,7 +97,7 @@ export const SalarySlipModal = ({
       }
 
       const xOffset = (pageWidth - pdfImgWidth) / 2;
-      
+
       pdf.addImage(imgData, 'PNG', xOffset, 0, pdfImgWidth, pdfImgHeight);
       pdf.save(`${workerName}_${endDate}.pdf`);
 
@@ -119,9 +120,9 @@ export const SalarySlipModal = ({
           <DialogTitle className="flex items-center justify-between">
             <span>Salary Slip</span>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handlePrintAndDownload}
                 disabled={isDownloading} // Disable while processing
               >
@@ -138,7 +139,7 @@ export const SalarySlipModal = ({
 
         {/* 3. CRITICAL FIX: Added ref={slipRef} here */}
         <div className="salary-slip-content p-4" ref={slipRef}>
-          
+
           {/* Worker Info */}
           <div className="grid grid-cols-2 gap-4 mb-6 bg-muted/50 p-4 rounded-lg">
             <div>
@@ -158,7 +159,7 @@ export const SalarySlipModal = ({
                   <th className="p-2 border border-border bg-muted font-bold">DATE</th>
                   {uniqueLooms.map(loom => (
                     <th key={loom} className="p-2 border border-border bg-muted font-bold">
-                      {loom.substring(6)}
+                      {loom}
                     </th>
                   ))}
                 </tr>
@@ -201,7 +202,7 @@ export const SalarySlipModal = ({
                 <tbody>
                   {uniqueLooms.map(loom => (
                     <tr key={loom}>
-                      <td className="border border-border p-2 font-bold">{loom.substring(6)}</td>
+                      <td className="border border-border p-2 font-bold">{loom}</td>
                       <td className="border border-border p-2 text-right">
                         {loomTotals[loom].toFixed(1)} m
                       </td>

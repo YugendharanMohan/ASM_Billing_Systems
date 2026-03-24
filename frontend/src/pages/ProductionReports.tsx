@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { 
-  productionApi, workersApi, shedsApi, 
-  ProductionHistoryItem, Worker, Shed, ProductionUpdateEntry 
+import {
+  productionApi, workersApi, shedsApi,
+  ProductionHistoryItem, Worker, Shed, ProductionUpdateEntry
 } from "@/lib/api";
 import { ProductionCharts } from "@/components/ProductionCharts";
 import { ProductionEditModal } from "@/components/ProductionEditModal";
-import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"; 
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import {
-  Calendar, FileText, Download, Loader2, Filter, 
-  TrendingUp, Search, X, Edit2, Trash2 
+  Calendar, FileText, Download, Loader2, Filter,
+  TrendingUp, Search, X, Edit2, Trash2
 } from "lucide-react";
 import {
   Table,
@@ -36,7 +36,7 @@ interface BackendProductionRecord extends Omit<ProductionHistoryItem, 'earnings'
 
 export default function ProductionReports() {
   const { toast } = useToast();
-  
+
   // Filter states
   const [startDate, setStartDate] = useState(() => {
     const today = new Date();
@@ -84,7 +84,7 @@ export default function ProductionReports() {
     try {
       setIsLoading(true);
       const workerParam = selectedWorker === "all" ? undefined : selectedWorker;
-      
+
       const data = await productionApi.getHistory(
         startDate,
         endDate,
@@ -105,7 +105,7 @@ export default function ProductionReports() {
 
   useEffect(() => {
     fetchHistory();
-  }, [startDate, endDate, selectedWorker]); 
+  }, [startDate, endDate, selectedWorker]);
 
   // Handle Edit Save
   const handleEditSave = async (id: string, data: ProductionUpdateEntry) => {
@@ -242,7 +242,7 @@ export default function ProductionReports() {
   };
 
   return (
-    <div className="pt-28 md:pt-20 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -277,7 +277,7 @@ export default function ProductionReports() {
 
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-4"><TrendingUp className="w-5 h-5 text-primary" /><h2 className="font-semibold text-foreground">Production Trends</h2></div>
-        <ProductionCharts history={filteredHistory} />
+        <ProductionCharts history={filteredHistory as any} />
       </div>
 
       <div className="card-elevated overflow-hidden">

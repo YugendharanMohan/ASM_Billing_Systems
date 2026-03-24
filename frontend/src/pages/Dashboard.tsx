@@ -3,18 +3,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { SalarySlipModal } from "@/components/SalarySlipModal";
-import { DashboardCharts } from "@/components/DashboardCharts"; 
+import { DashboardCharts } from "@/components/DashboardCharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { workersApi, shedsApi, salaryApi, Worker, Shed, SalaryResponse } from "@/lib/api";
-import { 
-  Users, Plus, Warehouse, Settings2, FileSpreadsheet, ChevronRight, 
-  Calendar, Receipt, Loader2, BarChart3 
+import {
+  Users, Plus, Warehouse, Settings2, FileSpreadsheet, ChevronRight,
+  Calendar, Receipt, Loader2, BarChart3
 } from "lucide-react";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
-  
+
   // Data states
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [sheds, setSheds] = useState<Shed[]>([]);
@@ -104,7 +104,7 @@ export default function Dashboard() {
     try {
       setIsLoadingSlip(true);
       const data = await salaryApi.calculate(workerId, startDate, endDate);
-      
+
       if (!data.details || data.details.length === 0) {
         toast({
           title: "No Records",
@@ -233,7 +233,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="pt-28 md:pt-20 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="pb-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground text-sm mt-1">Manage workers, sheds, and looms</p>

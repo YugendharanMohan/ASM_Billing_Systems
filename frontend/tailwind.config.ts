@@ -74,8 +74,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        'brand': '0 4px 14px -3px hsl(42 42% 47% / 0.35)',
-        'elevated': '0 10px 15px -3px hsl(215 25% 15% / 0.08), 0 4px 6px -4px hsl(215 25% 15% / 0.05)',
+        'brand': 'var(--shadow-brand)',
+        'elevated': 'var(--shadow-lg)',
       },
       keyframes: {
         "accordion-down": {
@@ -87,8 +87,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-brand": {
-          "0%, 100%": { boxShadow: "0 0 0 0 hsl(42 42% 47% / 0.4)" },
-          "50%": { boxShadow: "0 0 0 8px hsl(42 42% 47% / 0)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 hsla(255, 85%, 65%, 0.4)" },
+          "50%": { boxShadow: "0 0 0 8px hsla(255, 85%, 65%, 0)" },
         },
       },
       animation: {

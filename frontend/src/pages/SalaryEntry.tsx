@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  workersApi, shedsApi, productionApi, 
-  Worker, Shed, ProductionHistoryItem, ProductionUpdateEntry 
+import {
+  workersApi, shedsApi, productionApi,
+  Worker, Shed, ProductionHistoryItem, ProductionUpdateEntry
 } from "@/lib/api";
 import { ProductionEditModal } from "@/components/ProductionEditModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -80,7 +80,7 @@ export default function SalaryEntry() {
           shedsApi.getHierarchy(),
         ]);
         setWorkers(workersData.sort((a, b) => a.name.localeCompare(b.name)));
-        
+
         // Sorting sheds and their looms
         const sortedSheds = shedsData
           .sort((a, b) => a.name.localeCompare(b.name))
@@ -112,7 +112,7 @@ export default function SalaryEntry() {
       setIsLoadingRecent(true);
       const today = formData.date;
       const entries = await productionApi.getHistory(today, today);
-      
+
       // Map worker_id to actual name from the loaded workers list
       const enrichedEntries = entries.map(entry => {
         const foundWorker = workers.find(w => w.id === entry.worker_id);
@@ -144,10 +144,10 @@ export default function SalaryEntry() {
 
   const handleLoomChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const loomId = e.target.value;
-    
+
     let shedName = "";
     let loomNumber = "";
-    
+
     for (const shed of sheds) {
       const loom = shed.looms.find((l) => l.id === loomId);
       if (loom) {
@@ -167,7 +167,7 @@ export default function SalaryEntry() {
 
   const submitEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.worker_id || !formData.loom_id || !formData.meters || !formData.rate) {
       toast({
         title: "Error",
@@ -179,7 +179,7 @@ export default function SalaryEntry() {
 
     try {
       setIsSubmitting(true);
-      
+
       await productionApi.add({
         worker_id: formData.worker_id,
         loom_id: formData.loom_id,
@@ -233,7 +233,7 @@ export default function SalaryEntry() {
   // Delete Handler
   const handleDelete = async () => {
     if (!deleteEntry) return;
-    
+
     try {
       setIsDeleting(true);
       await productionApi.delete(deleteEntry.id);
@@ -262,17 +262,17 @@ export default function SalaryEntry() {
 
   if (isLoading) {
     return (
-      <div className="pt-28 md:pt-20 pb-8 px-4 min-h-screen flex items-center justify-center">
+      <div className="pb-8 px-4 min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="pt-28 md:pt-20 pb-8 px-4 min-h-screen">
+    <div className="pb-8 px-4 min-h-screen">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
+
           {/* Left Column: Entry Form */}
           <div className="animate-slide-up">
             <div className="card-elevated p-6 sm:p-8">
@@ -479,15 +479,14 @@ export default function SalaryEntry() {
                           </TableCell>
                           <TableCell>
                             {/* Loom (e.g. A1) */}
-                            {entry.loom_number}
+                            {(entry as any).shed_name || ""}{entry.loom_number}
                           </TableCell>
                           <TableCell>
                             <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                entry.shift === "Day"
-                                  ? "bg-warning/20 text-warning"
-                                  : "bg-secondary text-secondary-foreground"
-                              }`}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.shift === "Day"
+                                ? "bg-warning/20 text-warning"
+                                : "bg-secondary text-secondary-foreground"
+                                }`}
                             >
                               {entry.shift}
                             </span>

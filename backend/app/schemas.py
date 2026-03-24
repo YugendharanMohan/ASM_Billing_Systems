@@ -8,6 +8,7 @@ from typing import Optional, List
 class WorkerCreate(BaseModel):
     name: str
     phone: Optional[str] = None
+    role: str = Field(default="Operator", pattern="^(Admin|Operator|Owner)$")
 
 
 # --------------------------------------------------
@@ -55,6 +56,7 @@ class SalarySummary(BaseModel):
 class WorkerUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
+    role: Optional[str] = Field(None, pattern="^(Admin|Operator|Owner)$")
     is_active: Optional[bool] = None
 
 # NEW: For Analytics Response
@@ -68,3 +70,38 @@ class AnalyticsSummary(BaseModel):
 class ProductionUpdate(BaseModel):
     meters: Optional[float] = None
     shift: Optional[str] = None
+
+
+# --------------------------------------------------
+# ORGANIZATION (Multi-Tenancy)
+# --------------------------------------------------
+class OrganizationCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    industry: Optional[str] = "Textile / Loom"
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+class OrganizationUpdate(BaseModel):
+    name: Optional[str] = None
+    industry: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+
+# --------------------------------------------------
+# INVITE / MEMBER MANAGEMENT
+# --------------------------------------------------
+class InviteMember(BaseModel):
+    email: str = Field(..., description="Email of the user to invite")
+    name: Optional[str] = Field(None, description="Name of the user")
+    role: str = Field(
+        default="Operator",
+        pattern="^(Admin|Operator|Owner)$",
+        description="Role: Admin, Operator, or Owner"
+    )
+
+class MemberUpdate(BaseModel):
+    role: str = Field(
+        ..., 
+        pattern="^(Admin|Operator|Owner)$",
+        description="New role: Admin, Operator, or Owner"
+    )

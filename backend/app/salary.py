@@ -1,46 +1,43 @@
 from fastapi import APIRouter, Depends, Query
 from datetime import date
-from .crud import crud # Ensure relative import if in the same package
-from .auth import admin_required, get_current_user
-from .schemas import ProductionCreate # Keep for request validation
+from .crud import crud
+from .auth import org_admin_required, get_current_org
+from .schemas import ProductionCreate
 
-# We define the router here to be included in main.py
 router = APIRouter()
 
 # --------------------------------------------------
-# ADD PRODUCTION ENTRY
+# ADD PRODUCTION ENTRY (org-scoped)
 # --------------------------------------------------
 @router.post("/production/")
 def add_production(
     entry: ProductionCreate,
-    # REMOVED: db=Depends(get_db)
-    admin=Depends(admin_required) # Keep security check
+    ctx=Depends(org_admin_required)
 ):
     """
     Adds a new production record for a worker.
     Converts Pydantic model to dict for Firestore.
+    Requires Admin or Owner role.
     """
-    return crud.add_production(entry.dict())
+    return crud.add_production(ctx["org_id"], entry.dict())
 
 
 # --------------------------------------------------
-# SALARY CALCULATION
+# SALARY CALCULATION (org-scoped)
 # --------------------------------------------------
 @router.get("/salary/calculate")
 def calculate_salary(
-    # Firestore IDs are strings (e.g., "zX9yW2...")
     worker_id: str, 
     start_date: date = Query(..., description="Format: YYYY-MM-DD"),
     end_date: date = Query(..., description="Format: YYYY-MM-DD"),
-    # REMOVED: db=Depends(get_db)
-    admin=Depends(get_current_user)
+    ctx=Depends(get_current_org)
 ):
     """
     Calculates total meters and salary for a specific date range.
-    Output structure is UNCHANGED for frontend compatibility.
+    Output structure is unchanged for frontend compatibility.
     """
-    # Convert date objects to strings as Firestore queries work best with ISO strings
     return crud.calculate_salary(
+        org_id=ctx["org_id"],
         worker_id=worker_id, 
         start=str(start_date), 
         end=str(end_date)

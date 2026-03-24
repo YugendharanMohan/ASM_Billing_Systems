@@ -9,7 +9,7 @@ const getAuthToken = (): string | null => {
 // Generic fetch wrapper with auth
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
-  
+
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -41,33 +41,26 @@ export interface UserInfo {
   status: string;
   email: string;
   role: string;
+  org_role: string;
+  org_id: string | null;
   uid: string;
+  is_super_admin: boolean;
+  linked_worker_id: string | null;
 }
 
 export const authApi = {
-  login: async (email: string, password: string): Promise<LoginResponse> => {
-    const formData = new URLSearchParams();
-    formData.append("username", email);
-    formData.append("password", password);
-
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Login failed" }));
-      throw new Error(error.detail || "Login failed");
-    }
-
-    return response.json();
-  },
+  // login is now handled by Firebase JS SDK directly in AuthContext
+  // The backend /auth/login endpoint is kept for Swagger/testing only
 
   getMe: async (): Promise<UserInfo> => {
     return fetchWithAuth<UserInfo>("/auth/me");
+  },
+
+  register: async (name: string, role: string): Promise<UserInfo> => {
+    return fetchWithAuth<UserInfo>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name, role }),
+    });
   },
 };
 
@@ -79,6 +72,7 @@ export interface Worker {
   name: string;
   phone?: string;
   is_active?: boolean;
+  role?: string;
 }
 
 export const workersApi = {
@@ -86,14 +80,14 @@ export const workersApi = {
     return fetchWithAuth<Worker[]>("/workers/");
   },
 
-  create: async (data: { name: string; phone?: string }): Promise<Worker> => {
+  create: async (data: { name: string; phone?: string; role?: string }): Promise<Worker> => {
     return fetchWithAuth<Worker>("/workers/", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
-  update: async (id: string, data: { name?: string; phone?: string; is_active?: boolean }): Promise<Worker> => {
+  update: async (id: string, data: { name?: string; phone?: string; is_active?: boolean; role?: string }): Promise<Worker> => {
     return fetchWithAuth<Worker>(`/workers/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -247,10 +241,9 @@ export const productionApi = {
     });
   },
 
-  getHistory: async (startDate: string, endDate: string, workerId?: string, loomId?: string): Promise<ProductionHistoryItem[]> => {
+  getHistory: async (startDate: string, endDate: string, workerId?: string): Promise<ProductionHistoryItem[]> => {
     const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
     if (workerId) params.append("worker_id", workerId);
-    if (loomId) params.append("loom_id", loomId);
     return fetchWithAuth<ProductionHistoryItem[]>(`/production/history?${params.toString()}`);
   },
 
@@ -285,5 +278,169 @@ export const salaryApi = {
     return fetchWithAuth<SalaryResponse>(
       `/salary/calculate?worker_id=${encodeURIComponent(workerId)}&start_date=${startDate}&end_date=${endDate}`
     );
+  },
+};
+
+// =====================
+// ORGANIZATION API
+// =====================
+export interface Organization {
+  id: string;
+  name: string;
+  industry?: string;
+  phone?: string;
+  address?: string;
+  owner_uid: string;
+  owner_email: string;
+  plan: string;
+  member_count: number;
+  created_at: string;
+}
+
+export interface OrgMember {
+  uid: string;
+  email?: string;
+  name?: string;
+  role: string;
+  joined_at: string;
+}
+
+export const orgApi = {
+  create: async (data: { name: string; industry?: string; phone?: string; address?: string }): Promise<Organization> => {
+    return fetchWithAuth<Organization>("/organizations/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  getMyOrg: async (): Promise<Organization> => {
+    return fetchWithAuth<Organization>("/organizations/me");
+  },
+
+  update: async (data: { name?: string; industry?: string; phone?: string; address?: string }): Promise<Organization> => {
+    return fetchWithAuth<Organization>("/organizations/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+export const membersApi = {
+  list: async (): Promise<OrgMember[]> => {
+    return fetchWithAuth<OrgMember[]>("/organizations/members");
+  },
+
+  invite: async (email: string, role: string): Promise<any> => {
+    return fetchWithAuth("/organizations/members/invite", {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    });
+  },
+
+  updateRole: async (uid: string, role: string): Promise<any> => {
+    return fetchWithAuth(`/organizations/members/${uid}`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  remove: async (uid: string): Promise<any> => {
+    return fetchWithAuth(`/organizations/members/${uid}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+// =====================
+// BILLING API
+// =====================
+export interface PlanInfo {
+  id: string;
+  name: string;
+  price_monthly: number;
+  price_yearly: number;
+  trial_days: number;
+  limits: {
+    max_workers: number;
+    max_sheds: number;
+    max_looms_per_shed: number;
+    max_production_entries_per_month: number;
+    history_days: number;
+    allow_pdf_export: boolean;
+    allow_csv_export: boolean;
+    allow_invite_members: boolean;
+    max_members: number;
+  };
+}
+
+export interface SubscriptionInfo {
+  plan: string;
+  plan_name: string;
+  status: string;
+  is_active: boolean;
+  trial_start?: string;
+  trial_end?: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  razorpay_subscription_id?: string;
+  billing_cycle?: string;
+  plan_limits: PlanInfo["limits"];
+}
+
+export interface UsageInfo {
+  plan: string;
+  usage: {
+    workers: number;
+    sheds: number;
+    members: number;
+    production_entries_this_month: number;
+  };
+  limits: PlanInfo["limits"];
+  utilization: Record<string, string>;
+}
+
+export interface Invoice {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  method: string;
+  razorpay_payment_id?: string;
+}
+
+export interface CheckoutResponse {
+  subscription_id: string;
+  razorpay_key_id: string;
+  plan: string;
+  amount: number;
+}
+
+export const billingApi = {
+  getPlans: async (): Promise<PlanInfo[]> => {
+    return fetchWithAuth<PlanInfo[]>("/billing/plans");
+  },
+
+  getSubscription: async (): Promise<SubscriptionInfo> => {
+    return fetchWithAuth<SubscriptionInfo>("/billing/subscription");
+  },
+
+  getUsage: async (): Promise<UsageInfo> => {
+    return fetchWithAuth<UsageInfo>("/billing/usage");
+  },
+
+  getInvoices: async (): Promise<Invoice[]> => {
+    return fetchWithAuth<Invoice[]>("/billing/invoices");
+  },
+
+  checkout: async (planId: string, billingCycle: string = "monthly"): Promise<CheckoutResponse> => {
+    return fetchWithAuth<CheckoutResponse>(
+      `/billing/checkout?plan_id=${planId}&billing_cycle=${billingCycle}`,
+      { method: "POST" }
+    );
+  },
+
+  downgrade: async (): Promise<any> => {
+    return fetchWithAuth("/billing/downgrade-to-free", { method: "POST" });
   },
 };

@@ -4,6 +4,13 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { workersApi, Worker } from "@/lib/api";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -45,6 +52,7 @@ export default function Workers() {
   // Form states
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
+  const [formRole, setFormRole] = useState("Operator");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -79,6 +87,7 @@ export default function Workers() {
       const newWorker = await workersApi.create({
         name: formName.trim(),
         phone: formPhone.trim() || undefined,
+        role: formRole,
       });
       // Add and re-sort
       setWorkers([...workers, newWorker].sort((a, b) => a.name.localeCompare(b.name)));
@@ -104,14 +113,15 @@ export default function Workers() {
       const updatedWorker = await workersApi.update(selectedWorker.id, {
         name: formName.trim(),
         phone: formPhone.trim() || undefined,
+        role: formRole,
       });
-      
+
       setWorkers(
         workers
           .map((w) => (w.id === selectedWorker.id ? updatedWorker : w))
-          .sort((a, b) => a.name.localeCompare(b.name)) 
+          .sort((a, b) => a.name.localeCompare(b.name))
       );
-      
+
       setIsEditOpen(false);
       resetForm();
       toast({ title: "Success", description: "Worker updated successfully" });
@@ -170,6 +180,7 @@ export default function Workers() {
     setSelectedWorker(worker);
     setFormName(worker.name);
     setFormPhone(worker.phone || "");
+    setFormRole(worker.role || "Operator");
     setIsEditOpen(true);
   };
 
@@ -181,6 +192,7 @@ export default function Workers() {
   const resetForm = () => {
     setFormName("");
     setFormPhone("");
+    setFormRole("Operator");
     setSelectedWorker(null);
   };
 
@@ -189,7 +201,7 @@ export default function Workers() {
   );
 
   return (
-    <div className="pt-28 md:pt-20 pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="pb-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
@@ -232,6 +244,7 @@ export default function Workers() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -242,6 +255,11 @@ export default function Workers() {
                   <TableCell className="font-medium">{worker.name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {worker.phone || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs px-2 py-1 bg-muted rounded font-medium text-muted-foreground">
+                      {worker.role || "Operator"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -318,6 +336,19 @@ export default function Workers() {
                 onChange={(e) => setFormPhone(e.target.value)}
               />
             </div>
+            <div>
+              <label className="form-label">Role</label>
+              <Select value={formRole} onValueChange={setFormRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Operator">Operator</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Owner">Owner</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddOpen(false)}>
@@ -353,6 +384,19 @@ export default function Workers() {
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
               />
+            </div>
+            <div>
+              <label className="form-label">Role</label>
+              <Select value={formRole} onValueChange={setFormRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Operator">Operator</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Owner">Owner</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

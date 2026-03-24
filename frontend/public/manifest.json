@@ -1,0 +1,28 @@
+{
+    "name": "ASM Loom Management",
+    "short_name": "ASM",
+    "description": "Complete ERP for Loom & Textile Operations — Production, Salary, Attendance, Inventory, Orders, Expenses & Analytics",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0c0a09",
+    "theme_color": "#f97316",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "business",
+        "productivity"
+    ]
+}
