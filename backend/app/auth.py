@@ -17,8 +17,7 @@ FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY", "")
 
 # Role hierarchy (higher index = more permissions)
 ROLE_HIERARCHY = {
-    "Operator": 0,
-    "Admin": 2,
+    "Supervisor": 1,
     "Owner": 3,
 }
 
@@ -86,11 +85,23 @@ def get_me(user=Depends(verify_firebase_token)):
     """Returns the current user's info derived from their Firebase ID token."""
     email = user.get("email", "")
     is_super = email in SUPER_ADMIN_EMAIL
+    is_admin_claim = user.get("admin", False)
+    org_role = user.get("org_role", "Operator")
+    
+    # Determine display role (backwards compatible with frontend)
+    if is_admin_claim or is_super:
+        role = "Admin"
+    elif org_role in ("Owner", "Admin"):
+        role = "Admin"
+    else:
+        role = "User"
+    
     return {
+        "status": "Authenticated",
         "uid": user.get("uid"),
         "email": email,
-        "role": "Admin" if is_super else user.get("org_role", "Operator"),
-        "org_role": user.get("org_role", "Operator"),
+        "role": role,
+        "org_role": org_role,
         "org_id": user.get("org_id"),
         "is_super_admin": is_super,
     }
@@ -251,11 +262,36 @@ def super_admin_required(user=Depends(verify_firebase_token)):
 def operator_self_only(ctx=Depends(get_current_org)):
     """
     Row-level security for Operators.
-    For Operators: forces 'forced_worker_id' to be their own uid.
+    For Operators: looks up their linked worker document and forces
+    'forced_worker_id' to match. Checks both UID-based and query-based lookups.
     For Admin+: passes through with no filter.
     """
     if ctx.get("role") == "Operator":
-        ctx["forced_worker_id"] = ctx["uid"]
+        uid = ctx["uid"]
+        org_id = ctx["org_id"]
+        
+        # Try UID-based document first (invited members)
+        member_ref = db.collection("organizations").document(org_id) \
+            .collection("members").document(uid)
+        member_doc = member_ref.get()
+        
+        if member_doc.exists:
+            ctx["forced_worker_id"] = uid
+        else:
+            # Fallback: query by email for manually-created workers
+            email = ctx.get("email", "")
+            if email:
+                members = db.collection("organizations").document(org_id) \
+                    .collection("members") \
+                    .where("email", "==", email) \
+                    .limit(1).stream()
+                for m in members:
+                    ctx["forced_worker_id"] = m.id
+                    break
+                else:
+                    ctx["forced_worker_id"] = uid  # Fallback to uid
+            else:
+                ctx["forced_worker_id"] = uid
     return ctx
 
 # --------------------------------------------------

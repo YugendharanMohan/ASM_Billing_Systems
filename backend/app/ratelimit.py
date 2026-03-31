@@ -12,28 +12,36 @@ at scale, swap to Redis-backed rate limiting.
 
 import time
 from collections import defaultdict
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response, JSONResponse
 
 
 class RateLimitEntry:
-    __slots__ = ("tokens", "last_refill")
+    __slots__ = ("tokens", "last_refill", "max_tokens")
     
     def __init__(self, max_tokens: int):
+        self.max_tokens = max_tokens
         self.tokens = max_tokens
         self.last_refill = time.monotonic()
 
 
+# Cleanup interval: evict stale entries every 5 minutes
+_CLEANUP_INTERVAL = 300
+# Entries older than 10 minutes are stale
+_STALE_THRESHOLD = 600
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Token-bucket rate limiter."""
+    """Token-bucket rate limiter with periodic cleanup."""
     
     def __init__(self, app, general_rpm: int = 60, auth_rpm: int = 10, billing_rpm: int = 5):
         super().__init__(app)
         self.general_rpm = general_rpm
         self.auth_rpm = auth_rpm
         self.billing_rpm = billing_rpm
-        self.buckets: dict[str, RateLimitEntry] = defaultdict(lambda: RateLimitEntry(general_rpm))
+        self.buckets: dict[str, RateLimitEntry] = {}
+        self._last_cleanup = time.monotonic()
     
     def _get_limit(self, path: str) -> int:
         if "/auth/" in path or "/login" in path or "/register" in path:
@@ -48,10 +56,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return forwarded.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
     
+    def _cleanup_stale_entries(self):
+        """Evicts bucket entries that haven't been accessed recently."""
+        now = time.monotonic()
+        if now - self._last_cleanup < _CLEANUP_INTERVAL:
+            return
+        
+        self._last_cleanup = now
+        stale_keys = [
+            key for key, entry in self.buckets.items()
+            if now - entry.last_refill > _STALE_THRESHOLD
+        ]
+        for key in stale_keys:
+            del self.buckets[key]
+    
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip non-API and OPTIONS requests
         if not request.url.path.startswith("/api/") or request.method == "OPTIONS":
             return await call_next(request)
+        
+        # Periodic cleanup of stale entries
+        self._cleanup_stale_entries()
         
         client_ip = self._get_client_ip(request)
         path = request.url.path
@@ -60,6 +85,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         bucket_key = f"{client_ip}:{limit}"
         
         now = time.monotonic()
+        
+        # Create bucket with correct limit if it doesn't exist
+        if bucket_key not in self.buckets:
+            self.buckets[bucket_key] = RateLimitEntry(limit)
+        
         bucket = self.buckets[bucket_key]
         
         # Refill tokens based on elapsed time

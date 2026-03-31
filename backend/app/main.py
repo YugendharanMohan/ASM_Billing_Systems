@@ -45,9 +45,14 @@ app = FastAPI(title="ASM Loom Management - SaaS Edition")
 # --------------------------------------------------
 # CORS (REQUIRED FOR REACT & VERCEL)
 # --------------------------------------------------
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:8080,http://localhost:5173,http://localhost:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,36 +83,6 @@ app.include_router(payroll_router, prefix="/api/v1", tags=["Payroll"])
 @app.get("/health")
 def health_check():
     return {"status": "ok", "database": "firestore", "version": "2.0.0-saas"}
-
-# --------------------------------------------------
-# AUTH: ME ENDPOINT
-# --------------------------------------------------
-@app.get("/api/v1/auth/me", tags=["Authentication"])
-def get_my_role(user=Depends(get_current_user)):
-    """Returns the current user's role and org info."""
-    email = user.get("email")
-    is_admin_claim = user.get("admin", False)
-    org_id = user.get("org_id")
-    org_role = user.get("org_role", "Operator")
-    is_super = email in SUPER_ADMIN_EMAIL
-    
-    # Determine display role (backwards compatible)
-    if is_admin_claim or is_super:
-        role = "Admin"
-    elif org_role in ("Owner", "Admin"):
-        role = "Admin"
-    else:
-        role = "User"
-    
-    return {
-        "status": "Authenticated",
-        "email": email,
-        "role": role,
-        "org_role": org_role,
-        "org_id": org_id,
-        "uid": user.get("uid"),
-        "is_super_admin": is_super,
-    }
 
 # ==================================================
 # ORGANIZATION ENDPOINTS
@@ -175,12 +150,11 @@ def list_members(ctx=Depends(get_current_org)):
 @app.post("/api/v1/organizations/members/invite", tags=["Members"])
 def invite_member(
     invite: InviteMember,
-    ctx=Depends(org_admin_required)
+    ctx=Depends(owner_required)
 ):
     """
-    Invites a user to the org. If the user doesn't exist in Firebase,
-    creates their account. Requires Admin or Owner role.
-    For Operator role, linked_worker_id can be provided to link them.
+    Creates a supervisor account with email/password and adds them to the org.
+    Requires Owner role.
     """
     org_id = ctx["org_id"]
     
@@ -197,10 +171,11 @@ def invite_member(
                 detail=f"{invite.email} already belongs to another organization."
             )
     except firebase_auth.UserNotFoundError:
-        # Create the user in Firebase (they'll need to reset password)
+        # Create the user in Firebase with the provided password
         firebase_user = firebase_auth.create_user(
             email=invite.email,
-            email_verified=False,
+            password=invite.password,
+            email_verified=True,
             display_name=invite.name,
         )
         uid = firebase_user.uid

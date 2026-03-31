@@ -194,6 +194,7 @@ def execute_payroll_run(data: PayrollRunCreate, ctx=Depends(org_admin_required))
     Execute a payroll run for a date range.
     Calculates net salary for each worker:
       base (production) + allowances + bonuses - deductions - advance_repayment
+    Uses a Firestore batch write for transaction safety.
     """
     org_id = ctx["org_id"]
 
@@ -210,6 +211,8 @@ def execute_payroll_run(data: PayrollRunCreate, ctx=Depends(org_admin_required))
 
     payslips = []
     total_payout = 0
+    # Track advance updates to apply in a batch
+    advance_updates = []
 
     for worker in workers:
         wid = worker["id"]
@@ -235,12 +238,11 @@ def execute_payroll_run(data: PayrollRunCreate, ctx=Depends(org_admin_required))
                 max_deduct = min(base_salary * 0.5, adv["balance"])
                 if max_deduct > 0:
                     advance_deduction += max_deduct
-                    # Update advance balance
                     new_bal = round(adv["balance"] - max_deduct, 2)
-                    update = {"balance": new_bal}
+                    update_data = {"balance": new_bal}
                     if new_bal == 0:
-                        update["status"] = "repaid"
-                    _col(org_id, "advances").document(adv["id"]).update(update)
+                        update_data["status"] = "repaid"
+                    advance_updates.append((adv["id"], update_data))
                     break  # One advance at a time
 
         gross = base_salary + bonuses + allowances
@@ -271,6 +273,9 @@ def execute_payroll_run(data: PayrollRunCreate, ctx=Depends(org_admin_required))
             payslips.append(payslip)
             total_payout += net
 
+    # Use a batch write for atomicity: run record + payslips + advance updates
+    batch = db.batch()
+    
     # Save payroll run record
     run_data = {
         "period_start": data.start_date,
@@ -283,11 +288,20 @@ def execute_payroll_run(data: PayrollRunCreate, ctx=Depends(org_admin_required))
         "generated_at": datetime.utcnow().isoformat(),
     }
     run_ref = _col(org_id, "payroll_runs").document()
-    run_ref.set(run_data)
+    batch.set(run_ref, run_data)
 
     # Save individual payslips
     for ps in payslips:
-        _col(org_id, "payslips").document().set({**ps, "payroll_run_id": run_ref.id})
+        ps_ref = _col(org_id, "payslips").document()
+        batch.set(ps_ref, {**ps, "payroll_run_id": run_ref.id})
+    
+    # Apply advance deductions
+    for adv_id, update_data in advance_updates:
+        adv_ref = _col(org_id, "advances").document(adv_id)
+        batch.update(adv_ref, update_data)
+    
+    # Commit everything atomically
+    batch.commit()
 
     return {
         "payroll_run_id": run_ref.id,
@@ -338,9 +352,24 @@ def get_worker_payslip(
     allowances = sum(c["amount"] for c in components if c["type"] == "allowance")
     deductions = sum(c["amount"] for c in components if c["type"] == "deduction")
 
+    # Calculate advance deductions
+    advance_deduction = 0
+    adv_docs = _col(org_id, "advances") \
+        .where("worker_id", "==", worker_id) \
+        .where("status", "==", "active") \
+        .stream()
+    active_advances = [{"id": doc.id, **doc.to_dict()} for doc in adv_docs]
+    
     base = salary_data["summary"]["total_salary"]
+    for adv in sorted(active_advances, key=lambda a: a.get("issued_date", "")):
+        if adv["balance"] > 0:
+            max_deduct = min(base * 0.5, adv["balance"])
+            if max_deduct > 0:
+                advance_deduction += max_deduct
+                break  # One advance at a time (read-only, don't update here)
+
     gross = base + bonuses + allowances
-    net = gross - deductions
+    net = gross - deductions - advance_deduction
 
     # Get worker name
     workers = crud.get_workers(org_id)
@@ -356,7 +385,7 @@ def get_worker_payslip(
         "bonuses": round(bonuses, 2),
         "allowances": round(allowances, 2),
         "deductions": round(deductions, 2),
-        "advance_deduction": 0,
+        "advance_deduction": round(advance_deduction, 2),
         "gross_salary": round(gross, 2),
         "net_salary": round(net, 2),
         "production_details": salary_data["details"],

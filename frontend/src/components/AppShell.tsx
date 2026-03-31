@@ -9,9 +9,6 @@ import {
     LogOut,
     Factory,
     Users,
-    BarChart3,
-    Settings,
-    CreditCard,
     CalendarCheck,
     Receipt,
     Package,
@@ -23,7 +20,8 @@ import {
     Menu,
     X,
     User,
-    ChevronRight
+    ChevronRight,
+    Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -37,7 +35,7 @@ export default function AppShell({ children }: AppShellProps) {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { theme, setTheme } = useTheme();
-    const { canAccess, isOperator } = usePermissions();
+    const { canAccess } = usePermissions();
 
     const handleLogout = () => {
         logout();
@@ -52,23 +50,17 @@ export default function AppShell({ children }: AppShellProps) {
     const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
 
     const allLinks = [
-        { to: "/my-dashboard", label: "My Dashboard", icon: User, operatorOnly: true },
         { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
         { to: "/workers", label: "Workers", icon: Users },
-        { to: "/analytics", label: "Analytics", icon: BarChart3 },
         { to: "/salary-entry", label: "Meter Entry", icon: FileSpreadsheet },
-        { to: "/attendance", label: "Attendance", icon: CalendarCheck },
         { to: "/inventory", label: "Inventory", icon: Package },
         { to: "/orders", label: "Orders", icon: ShoppingCart },
         { to: "/expenses", label: "Expenses", icon: Receipt },
         { to: "/payroll", label: "Payroll", icon: Wallet },
-        { to: "/billing", label: "Billing", icon: CreditCard },
         { to: "/settings", label: "Settings", icon: Settings },
     ];
 
     const navLinks = allLinks.filter((link) => {
-        if (link.operatorOnly) return isOperator;
-        if (isOperator) return false;
         const moduleKey = link.to.slice(1);
         return canAccess(moduleKey);
     });

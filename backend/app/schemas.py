@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from datetime import date
+from pydantic import BaseModel, Field, validator
+from datetime import date, datetime
 from typing import Optional, List
 
 # --------------------------------------------------
@@ -8,7 +8,6 @@ from typing import Optional, List
 class WorkerCreate(BaseModel):
     name: str
     phone: Optional[str] = None
-    role: str = Field(default="Operator", pattern="^(Admin|Operator|Owner)$")
 
 
 # --------------------------------------------------
@@ -91,17 +90,18 @@ class OrganizationUpdate(BaseModel):
 # INVITE / MEMBER MANAGEMENT
 # --------------------------------------------------
 class InviteMember(BaseModel):
-    email: str = Field(..., description="Email of the user to invite")
-    name: Optional[str] = Field(None, description="Name of the user")
+    email: str = Field(..., description="Email of the supervisor to add")
+    name: str = Field(..., description="Name of the supervisor")
+    password: str = Field(..., min_length=6, description="Password for the new account")
     role: str = Field(
-        default="Operator",
-        pattern="^(Admin|Operator|Owner)$",
-        description="Role: Admin, Operator, or Owner"
+        default="Supervisor",
+        pattern="^(Supervisor|Owner)$",
+        description="Role: Supervisor or Owner"
     )
 
 class MemberUpdate(BaseModel):
     role: str = Field(
         ..., 
-        pattern="^(Admin|Operator|Owner)$",
-        description="New role: Admin, Operator, or Owner"
+        pattern="^(Supervisor|Owner)$",
+        description="New role: Supervisor or Owner"
     )

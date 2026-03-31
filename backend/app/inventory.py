@@ -170,44 +170,48 @@ def delete_item(item_id: str, ctx=Depends(org_admin_required)):
 
 @router.post("/inventory/transaction", tags=["Inventory"])
 def record_transaction(txn: StockTransaction, ctx=Depends(manager_required)):
-    """Records a stock in or stock out transaction. Updates item's current_stock."""
+    """Records a stock in or stock out transaction. Updates item's current_stock atomically."""
+    from google.cloud import firestore as fs_client
+    
     org_id = ctx["org_id"]
-    
-    # Verify item exists
     item_ref = _col(org_id, "inventory").document(txn.item_id)
-    item_doc = item_ref.get()
-    if not item_doc.exists:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
-    
-    item_data = item_doc.to_dict()
-    current_stock = item_data.get("current_stock", 0)
-    
-    # Calculate new stock
-    if txn.type == "in":
-        new_stock = current_stock + txn.quantity
-    else:  # out
-        if txn.quantity > current_stock:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock. Available: {current_stock}, Requested: {txn.quantity}"
-            )
-        new_stock = current_stock - txn.quantity
-    
-    # Record transaction
-    txn_data = {
-        **txn.dict(),
-        "previous_stock": current_stock,
-        "new_stock": new_stock,
-        "created_by": ctx["uid"],
-        "created_at": datetime.utcnow().isoformat(),
-    }
     txn_ref = _col(org_id, "stock_transactions").document()
-    txn_ref.set(txn_data)
     
-    # Update item stock
-    item_ref.update({"current_stock": new_stock})
+    @fs_client.transactional
+    def _update_in_transaction(transaction):
+        item_doc = item_ref.get(transaction=transaction)
+        if not item_doc.exists:
+            raise HTTPException(status_code=404, detail="Inventory item not found")
+        
+        item_data = item_doc.to_dict()
+        current_stock = item_data.get("current_stock", 0)
+        
+        # Calculate new stock
+        if txn.type == "in":
+            new_stock = current_stock + txn.quantity
+        else:  # out
+            if txn.quantity > current_stock:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock. Available: {current_stock}, Requested: {txn.quantity}"
+                )
+            new_stock = current_stock - txn.quantity
+        
+        # Record transaction and update stock atomically
+        txn_data = {
+            **txn.dict(),
+            "previous_stock": current_stock,
+            "new_stock": new_stock,
+            "created_by": ctx["uid"],
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        transaction.set(txn_ref, txn_data)
+        transaction.update(item_ref, {"current_stock": new_stock})
+        
+        return {"id": txn_ref.id, **txn_data}
     
-    return {"id": txn_ref.id, **txn_data}
+    transaction = db.transaction()
+    return _update_in_transaction(transaction)
 
 
 @router.get("/inventory/transactions", tags=["Inventory"])

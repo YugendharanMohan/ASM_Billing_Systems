@@ -256,8 +256,14 @@ def profit_and_loss(
     """Returns P&L: order revenue - expenses - salaries."""
     org_id = ctx["org_id"]
     
-    # Revenue from orders
-    orders = list(_col(org_id, "orders").stream())
+    # Revenue from orders (filtered by date range)
+    orders_query = _col(org_id, "orders")
+    # Filter orders created within the date range
+    if start_date:
+        orders_query = orders_query.where("created_at", ">=", start_date)
+    if end_date:
+        orders_query = orders_query.where("created_at", "<=", end_date + "T23:59:59")
+    orders = list(orders_query.stream())
     total_revenue = sum(
         o.to_dict().get("total_value", 0)
         for o in orders

@@ -330,10 +330,10 @@ export const membersApi = {
     return fetchWithAuth<OrgMember[]>("/organizations/members");
   },
 
-  invite: async (email: string, role: string): Promise<any> => {
+  invite: async (email: string, role: string, name: string, password: string): Promise<any> => {
     return fetchWithAuth("/organizations/members/invite", {
       method: "POST",
-      body: JSON.stringify({ email, role }),
+      body: JSON.stringify({ email, role, name, password }),
     });
   },
 

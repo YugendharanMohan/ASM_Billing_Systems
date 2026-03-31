@@ -8,22 +8,20 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RoleGate from "@/components/RoleGate";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import Navbar from "@/components/Navbar";
 import AppShell from "@/components/AppShell";
-import LandingPage from "@/pages/LandingPage";
+
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import SalaryEntry from "@/pages/SalaryEntry";
 import Workers from "@/pages/Workers";
 import ProductionReports from "@/pages/ProductionReports";
 import Onboarding from "@/pages/Onboarding";
-import Settings from "@/pages/Settings";
-import Billing from "@/pages/Billing";
-import Attendance from "@/pages/Attendance";
+
 import Expenses from "@/pages/Expenses";
 import InventoryPage from "@/pages/InventoryPage";
 import OrdersPage from "@/pages/OrdersPage";
-import Analytics from "@/pages/Analytics";
+import Settings from "@/pages/Settings";
+
 import PayrollPage from "@/pages/PayrollPage";
 import MyDashboard from "@/pages/MyDashboard";
 
@@ -56,7 +54,7 @@ const App = () => (
             <ErrorBoundary>
               <Routes>
                 {/* Public Routes */}
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
 
                 {/* Onboarding (needs auth but no org) */}
@@ -88,7 +86,7 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <OrgGuard>
-                        <RoleGate minRole="Manager">
+                        <RoleGate minRole="Owner">
                           <AppShell>
                             <Dashboard />
                           </AppShell>
@@ -103,7 +101,7 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <OrgGuard>
-                        <RoleGate minRole="Manager">
+                        <RoleGate minRole="Supervisor">
                           <AppShell>
                             <SalaryEntry />
                           </AppShell>
@@ -118,7 +116,7 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <OrgGuard>
-                        <RoleGate minRole="Manager">
+                        <RoleGate minRole="Supervisor">
                           <AppShell>
                             <Workers />
                           </AppShell>
@@ -133,9 +131,69 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <OrgGuard>
-                        <RoleGate minRole="Manager">
+                        <RoleGate minRole="Owner">
                           <AppShell>
                             <ProductionReports />
+                          </AppShell>
+                        </RoleGate>
+                      </OrgGuard>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/expenses"
+                  element={
+                    <ProtectedRoute>
+                      <OrgGuard>
+                        <RoleGate minRole="Owner">
+                          <AppShell>
+                            <Expenses />
+                          </AppShell>
+                        </RoleGate>
+                      </OrgGuard>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/inventory"
+                  element={
+                    <ProtectedRoute>
+                      <OrgGuard>
+                        <RoleGate minRole="Supervisor">
+                          <AppShell>
+                            <InventoryPage />
+                          </AppShell>
+                        </RoleGate>
+                      </OrgGuard>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/orders"
+                  element={
+                    <ProtectedRoute>
+                      <OrgGuard>
+                        <RoleGate minRole="Owner">
+                          <AppShell>
+                            <OrdersPage />
+                          </AppShell>
+                        </RoleGate>
+                      </OrgGuard>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/payroll"
+                  element={
+                    <ProtectedRoute>
+                      <OrgGuard>
+                        <RoleGate minRole="Owner">
+                          <AppShell>
+                            <PayrollPage />
                           </AppShell>
                         </RoleGate>
                       </OrgGuard>
@@ -151,111 +209,6 @@ const App = () => (
                         <RoleGate minRole="Owner">
                           <AppShell>
                             <Settings />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/billing"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Owner">
-                          <AppShell>
-                            <Billing />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/attendance"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Manager">
-                          <AppShell>
-                            <Attendance />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/expenses"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Manager">
-                          <AppShell>
-                            <Expenses />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/inventory"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Manager">
-                          <AppShell>
-                            <InventoryPage />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/orders"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Manager">
-                          <AppShell>
-                            <OrdersPage />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/analytics"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Manager">
-                          <AppShell>
-                            <Analytics />
-                          </AppShell>
-                        </RoleGate>
-                      </OrgGuard>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/payroll"
-                  element={
-                    <ProtectedRoute>
-                      <OrgGuard>
-                        <RoleGate minRole="Manager">
-                          <AppShell>
-                            <PayrollPage />
                           </AppShell>
                         </RoleGate>
                       </OrgGuard>

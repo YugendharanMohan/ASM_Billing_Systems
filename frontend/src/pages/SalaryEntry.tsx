@@ -416,7 +416,6 @@ export default function SalaryEntry() {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  variant="success"
                   size="lg"
                   className="w-full"
                   disabled={isSubmitting}

@@ -51,7 +51,7 @@ export default function Onboarding() {
                     </div>
                     <h1 className="text-3xl font-bold text-foreground">Welcome to ASM</h1>
                     <p className="text-muted-foreground mt-2">
-                        Let's set up your organization to get started
+                        Register your company to get started as the Owner
                     </p>
                 </div>
 
@@ -93,6 +93,10 @@ export default function Onboarding() {
                         >
                             Continue <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
+
+                        <p className="text-xs text-muted-foreground text-center">
+                            You'll be registered as the <strong>Owner</strong> with full access. You can add <strong>Supervisors</strong> later from Settings.
+                        </p>
                     </div>
                 )}
 

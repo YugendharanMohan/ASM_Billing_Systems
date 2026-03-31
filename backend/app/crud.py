@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from google.cloud.firestore_v1 import Increment
 from .database import db
 from .plans import create_trial_subscription, TRIAL_PLAN
 
@@ -93,10 +94,8 @@ class CRUD:
             "joined_at": datetime.utcnow().isoformat(),
         })
         
-        # Update member count
-        org_ref = self._org_ref(org_id)
-        members_count = len(list(org_ref.collection("members").stream()))
-        org_ref.update({"member_count": members_count})
+        # Atomically update member count
+        self._org_ref(org_id).update({"member_count": Increment(1)})
         
         return {"uid": uid, "email": email, "role": role}
 
@@ -115,10 +114,8 @@ class CRUD:
             return False
         member_ref.delete()
         
-        # Update member count
-        org_ref = self._org_ref(org_id)
-        members_count = len(list(org_ref.collection("members").stream()))
-        org_ref.update({"member_count": members_count})
+        # Atomically decrement member count
+        self._org_ref(org_id).update({"member_count": Increment(-1)})
         return True
 
     # -------------------------------------------------
@@ -147,7 +144,12 @@ class CRUD:
         members_query = self._org_ref(org_id).collection("members").stream()
         all_members = list(members_query)
         members_count = len(all_members)
-        workers_count = sum(1 for m in all_members if m.to_dict().get("role") == "Operator")
+        # Workers = members with role Worker (not Owner/Admin/Supervisor)
+        NON_WORKER_ROLES = ("Owner", "Admin", "Supervisor")
+        workers_count = sum(
+            1 for m in all_members
+            if m.to_dict().get("role") not in NON_WORKER_ROLES
+        )
         sheds_count = len(list(self._col(org_id, "sheds").stream()))
         
         # Count production entries this month
@@ -179,26 +181,33 @@ class CRUD:
         return [{"id": doc.id, **doc.to_dict()} for doc in docs]
 
     # -------------------------------------------------
-    # WORKER OPERATIONS (Merged into Members with role='Operator')
+    # WORKER OPERATIONS (Stored as members with role='Worker')
     # ------------------------------------------------- 
+    # Roles that are NOT workers (used for filtering)
+    NON_WORKER_ROLES = ("Owner", "Admin", "Supervisor")
+
     def create_worker(self, org_id: str, worker_data: dict):
         doc_ref = self._org_ref(org_id).collection("members").document()
         record = {
-            "role": "Operator",
+            "role": "Worker",
             **worker_data,
             "joined_at": datetime.utcnow().isoformat()
         }
         doc_ref.set(record)
         
-        org_ref = self._org_ref(org_id)
-        members_count = len(list(org_ref.collection("members").stream()))
-        org_ref.update({"member_count": members_count})
+        # Atomically increment member count
+        self._org_ref(org_id).update({"member_count": Increment(1)})
         
         return {"id": doc_ref.id, **record}
 
     def get_workers(self, org_id: str):
+        """Returns worker-role members only (excludes Owner, Admin, Supervisor)."""
         docs = self._org_ref(org_id).collection("members").stream()
-        return [{"id": doc.id, **doc.to_dict()} for doc in docs]
+        return [
+            {"id": doc.id, **doc.to_dict()}
+            for doc in docs
+            if doc.to_dict().get("role") not in self.NON_WORKER_ROLES
+        ]
 
     def update_worker(self, org_id: str, worker_id: str, data: dict):
         doc_ref = self._org_ref(org_id).collection("members").document(worker_id)
@@ -210,9 +219,9 @@ class CRUD:
         if update_data:
             doc_ref.update(update_data)
         
-        current_data = doc.to_dict()
-        current_data.update(update_data)
-        return {**current_data, "id": worker_id}
+        # Read fresh data after update
+        updated_doc = doc_ref.get()
+        return {**updated_doc.to_dict(), "id": worker_id}
 
     def delete_worker(self, org_id: str, worker_id: str):
         doc_ref = self._org_ref(org_id).collection("members").document(worker_id)
@@ -220,9 +229,8 @@ class CRUD:
             return False
         doc_ref.delete()
         
-        org_ref = self._org_ref(org_id)
-        members_count = len(list(org_ref.collection("members").stream()))
-        org_ref.update({"member_count": members_count})
+        # Atomically decrement member count
+        self._org_ref(org_id).update({"member_count": Increment(-1)})
         
         return True
 

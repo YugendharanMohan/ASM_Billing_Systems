@@ -212,7 +212,7 @@ export default function Login() {
                       <p className="text-sm font-medium text-foreground">Company Owner Registration</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         This signup is for mill owners to register their company.
-                        Managers and operators will be invited by the company admin after setup.
+                        Supervisors and workers will be onboarded by the company owner after setup.
                       </p>
                     </div>
                   </div>

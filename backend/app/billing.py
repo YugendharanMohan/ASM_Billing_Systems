@@ -163,7 +163,7 @@ def create_checkout(
     # Store the pending subscription
     crud.update_subscription(ctx["org_id"], {
         "plan": plan_id,
-        "status": SubscriptionStatus.ACTIVE,  # Will be confirmed by webhook
+        "status": "pending",  # Will be set to ACTIVE by webhook after payment confirmation
         "razorpay_subscription_id": rz_sub["id"],
         "billing_cycle": billing_cycle,
         "current_period_start": datetime.utcnow().isoformat(),
@@ -190,16 +190,21 @@ async def razorpay_webhook(request: Request):
     body = await request.body()
     signature = request.headers.get("X-Razorpay-Signature", "")
     
-    # Verify webhook signature
-    if RAZORPAY_WEBHOOK_SECRET:
-        expected = hmac.new(
-            RAZORPAY_WEBHOOK_SECRET.encode(),
-            body,
-            hashlib.sha256,
-        ).hexdigest()
-        
-        if not hmac.compare_digest(expected, signature):
-            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    # Verify webhook signature (REQUIRED for security)
+    if not RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=503,
+            detail="Webhook secret not configured. Cannot process payment events."
+        )
+    
+    expected = hmac.new(
+        RAZORPAY_WEBHOOK_SECRET.encode(),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+    
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
     
     payload = json.loads(body)
     event = payload.get("event", "")

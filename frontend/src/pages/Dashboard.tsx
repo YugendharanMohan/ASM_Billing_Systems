@@ -13,7 +13,7 @@ import {
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { isOwner } = useAuth();
 
   // Data states
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -275,7 +275,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {isAdmin && (
+            {isOwner && (
               <div className="flex gap-2">
                 <input
                   value={workerName}
@@ -338,7 +338,7 @@ export default function Dashboard() {
 
           <div className="space-y-4">
             {/* Add Shed - Admin Only */}
-            {isAdmin && (
+            {isOwner && (
               <div>
                 <label className="form-label">Add New Shed</label>
                 <div className="flex gap-2">
@@ -358,7 +358,7 @@ export default function Dashboard() {
             )}
 
             {/* Add Loom to Shed - Admin Only */}
-            {isAdmin && (
+            {isOwner && (
               <div className="border-t pt-4">
                 <label className="form-label">Add Loom to Shed</label>
                 <select
@@ -396,7 +396,7 @@ export default function Dashboard() {
             )}
 
             {/* Sheds List */}
-            <div className={isAdmin ? "border-t pt-4" : ""}>
+            <div className={isOwner ? "border-t pt-4" : ""}>
               <p className="form-label mb-2">Current Sheds</p>
               {isLoadingSheds ? (
                 <div className="flex items-center justify-center py-8">
@@ -428,14 +428,14 @@ export default function Dashboard() {
           style={{ animationDelay: "0.3s" }}
         >
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
-              <FileSpreadsheet className="w-5 h-5 text-success" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FileSpreadsheet className="w-5 h-5 text-primary" />
             </div>
             <h2 className="font-bold text-lg text-foreground">Quick Actions</h2>
           </div>
 
           <Link to="/salary-entry" className="block">
-            <Button variant="success" size="lg" className="w-full h-14 text-base">
+            <Button size="lg" className="w-full h-14 text-base">
               <FileSpreadsheet className="w-5 h-5" />
               Daily Meter Entry
             </Button>

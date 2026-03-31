@@ -1,45 +1,41 @@
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * Role hierarchy: Operator(0) → Manager(1) → Admin(2) → Owner(3)
+ * Role hierarchy: Supervisor(1) → Owner(2)
  * Super Admins bypass all checks.
  */
 const ROLE_HIERARCHY: Record<string, number> = {
-    Operator: 0,
-    Manager: 1,
-    Admin: 2,
-    Owner: 3,
+    Supervisor: 1,
+    Owner: 2,
 };
 
 /**
  * Minimum role required to access each module (route path without leading /).
- * Modules not listed here default to "Operator" (any authenticated org member).
+ * Supervisor: workers, salary-entry, inventory
+ * Owner: everything
  */
 const MODULE_MIN_ROLE: Record<string, string> = {
-    dashboard: "Manager",
-    workers: "Manager",
-    analytics: "Manager",
-    "salary-entry": "Manager",
-    attendance: "Manager",
-    inventory: "Manager",
-    orders: "Manager",
-    expenses: "Manager",
-    reports: "Manager",
-    payroll: "Manager",
-    billing: "Owner",
+    workers: "Supervisor",
+    "salary-entry": "Supervisor",
+    inventory: "Supervisor",
+    dashboard: "Owner",
+    orders: "Owner",
+    expenses: "Owner",
+    reports: "Owner",
+    payroll: "Owner",
     settings: "Owner",
 };
 
 export function usePermissions() {
     const { user } = useAuth();
 
-    const orgRole = user?.orgRole ?? "Operator";
+    const orgRole = user?.orgRole ?? "Supervisor";
     const isSuperAdmin = user?.isSuperAdmin ?? false;
 
     /** Check if the current user can access a module by its route key */
     const canAccess = (moduleKey: string): boolean => {
         if (isSuperAdmin) return true;
-        const minRole = MODULE_MIN_ROLE[moduleKey] ?? "Operator";
+        const minRole = MODULE_MIN_ROLE[moduleKey] ?? "Supervisor";
         return (ROLE_HIERARCHY[orgRole] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 0);
     };
 
@@ -49,9 +45,7 @@ export function usePermissions() {
         return (ROLE_HIERARCHY[orgRole] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 0);
     };
 
-    const isOperator = orgRole === "Operator" && !isSuperAdmin;
-    const isManager = hasMinRole("Manager");
-    const isAdmin = hasMinRole("Admin");
+    const isSupervisor = hasMinRole("Supervisor");
     const isOwner = hasMinRole("Owner");
 
     return {
@@ -59,9 +53,7 @@ export function usePermissions() {
         hasMinRole,
         orgRole,
         isSuperAdmin,
-        isOperator,
-        isManager,
-        isAdmin,
+        isSupervisor,
         isOwner,
     };
 }
