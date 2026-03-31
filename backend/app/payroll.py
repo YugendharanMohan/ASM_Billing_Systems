@@ -13,8 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
 
-from .auth import get_current_org, org_admin_required
-manager_required = org_admin_required  # alias
+from .auth import get_current_org, org_admin_required as manager_required
 from .crud import crud
 from .database import db
 
