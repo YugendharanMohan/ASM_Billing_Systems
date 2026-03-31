@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
-from .auth import get_current_org, org_admin_required as manager_required
+from .auth import get_current_org, org_admin_required, org_admin_required as manager_required
 from .database import db
 
 router = APIRouter()
